@@ -28,13 +28,11 @@
             <p class="text-gray-600">ห้องเรียนครูปังปอนด์</p>
         </div>
 
-        <!-- ปิดการจำค่าที่ฟอร์มหลัก -->
         <form id="submissionForm" class="space-y-5" autocomplete="off">
             <!-- ข้อมูลส่วนตัว -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อ - นามสกุล</label>
-                    <!-- เพิ่ม autocomplete="off" ที่ชื่อ-นามสกุล -->
                     <input type="text" id="fullname" required placeholder="ด.ช. / ด.ญ." autocomplete="off"
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition">
                 </div>
@@ -59,7 +57,6 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">เลขที่</label>
-                    <!-- เพิ่ม autocomplete="off" ที่เลขที่ -->
                     <input type="number" id="number" required placeholder="เช่น 1, 2, 3" autocomplete="off"
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
                 </div>
@@ -67,10 +64,7 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">วิชา</label>
                     <select id="subject" required
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
-                        <option value="" disabled selected>เลือกวิชา</option>
-                        <option value="วิทยาการคำนวณ">วิทยาการคำนวณ</option>
-                        <option value="การงานอาชีพ">การงานอาชีพ</option>
-                        <option value="-">อื่นๆ</option>
+                        <option value="" disabled selected>⏳ กำลังโหลดวิชา...</option>
                     </select>
                 </div>
             </div>
@@ -78,14 +72,12 @@
             <!-- ข้อมูลงาน -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">ชื่องาน / บทเรียน</label>
-                <!-- เพิ่ม autocomplete="off" ที่ชื่องาน -->
                 <input type="text" id="workName" required placeholder="เช่น ใบงาน Scratch, ออกแบบป้าย" autocomplete="off"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
             </div>
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">ลิงก์ผลงาน (ถ้ามี เช่น ลิงก์ Scratch, Canva)</label>
-                <!-- เพิ่ม autocomplete="off" ที่ลิงก์ผลงาน -->
                 <input type="url" id="workLink" placeholder="https://..." autocomplete="off"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
             </div>
@@ -111,16 +103,46 @@
     </div>
 
     <script>
-        // ⚠️ นำ Web App URL ที่ Deploy แล้วมาใส่ตรงนี้
+        // ⚠️ Web App URL เดิม
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzTfdTYnXTS3ZkhCzUCFmdrf3b3vFZCBBqSXwrXeP8WAnioBTIy0gKHv9hTwQEaCtlfaA/exec';
 
+        // โค้ดส่วนดึงวิชาจาก Google Sheets เมื่อเปิดหน้าเว็บ
+        window.addEventListener('DOMContentLoaded', async () => {
+            const subjectSelect = document.getElementById('subject');
+            try {
+                const response = await fetch(APPS_SCRIPT_URL + '?action=getSubjects', { redirect: 'follow' });
+                const result = await response.json();
+                
+                if (result.status === 'success' && result.data.length > 0) {
+                    subjectSelect.innerHTML = '<option value="" disabled selected>เลือกวิชา</option>';
+                    result.data.forEach(sub => {
+                        const opt = document.createElement('option');
+                        opt.value = sub;
+                        opt.textContent = sub;
+                        subjectSelect.appendChild(opt);
+                    });
+                } else {
+                    subjectSelect.innerHTML = '<option value="" disabled selected>ไม่พบข้อมูลวิชา</option>';
+                }
+            } catch(e) {
+                // เผื่ออินเทอร์เน็ตมีปัญหา จะแสดง 2 วิชานี้เป็นค่าเริ่มต้น
+                subjectSelect.innerHTML = '<option value="" disabled selected>เลือกวิชา</option>';
+                ['วิทยาการคำนวณ', 'การงานอาชีพ', 'อื่นๆ'].forEach(sub => {
+                    const opt = document.createElement('option');
+                    opt.value = sub;
+                    opt.textContent = sub;
+                    subjectSelect.appendChild(opt);
+                });
+            }
+        });
+
+        // โค้ดส่งงานเหมือนเดิม
         document.getElementById('submissionForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
             const fileInput = document.getElementById('file');
             const workLink = document.getElementById('workLink').value;
 
-            // ตรวจสอบว่ามีไฟล์หรือลิงก์ส่งมาหรือไม่
             if (fileInput.files.length === 0 && !workLink) {
                 Swal.fire({
                     icon: 'warning',
@@ -162,7 +184,6 @@
             });
 
             try {
-                // แปลงไฟล์เป็น Base64 ถ้ามีการแนบไฟล์
                 if (fileInput.files.length > 0) {
                     for (let i = 0; i < fileInput.files.length; i++) {
                         const base64Data = await toBase64(fileInput.files[i]);
